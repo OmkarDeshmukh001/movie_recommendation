@@ -3,7 +3,6 @@ import pickle
 import requests
 import os
 import pandas as pd
-from sklearn.metrics.pairwise import cosine_similarity
 
 # ==============================
 # Load Movies
@@ -16,7 +15,7 @@ def load_movies():
 
 
 movies = load_movies()
-movies_list = movies["title"]
+movies_list = movies["title"].values
 
 
 # ==============================
@@ -24,13 +23,19 @@ movies_list = movies["title"]
 # ==============================
 @st.cache_data
 def load_similarity():
+    # ✅ If precomputed file exists
     if os.path.exists("similarity.pkl"):
         return pickle.load(open("similarity.pkl", "rb"))
 
-    # 🔥 Generate if missing (Render safe)
-    similarity_matrix = cosine_similarity(movies["tags"].tolist())
+    # ✅ Otherwise generate properly
+    from sklearn.feature_extraction.text import CountVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
 
-    # Save locally (optional)
+    cv = CountVectorizer(max_features=5000, stop_words="english")
+    vectors = cv.fit_transform(movies["tags"]).toarray()
+    similarity_matrix = cosine_similarity(vectors)
+
+    # Save locally (Render may ignore but safe)
     try:
         with open("similarity.pkl", "wb") as f:
             pickle.dump(similarity_matrix, f)
@@ -48,14 +53,19 @@ similarity = load_similarity()
 # ==============================
 def fetch_poster(movie_id):
     try:
-        url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key=4b1d4c2d4d0937cb0beab8906e429401&language=en-US"
+        url = (
+            f"https://api.themoviedb.org/3/movie/{movie_id}"
+            f"?api_key=4b1d4c2d4d0937cb0beab8906e429401&language=en-US"
+        )
         data = requests.get(url, timeout=10).json()
         poster_path = data.get("poster_path")
 
         if poster_path:
             return "https://image.tmdb.org/t/p/w500/" + poster_path
+
         return "https://via.placeholder.com/500x750?text=No+Image"
-    except:
+
+    except Exception:
         return "https://via.placeholder.com/500x750?text=Error"
 
 
@@ -63,7 +73,7 @@ def fetch_poster(movie_id):
 # Recommendation function
 # ==============================
 def recommend(movie):
-    movie_index = movies_list[movies_list == movie].index[0]
+    movie_index = movies[movies["title"] == movie].index[0]
     distances = similarity[movie_index]
 
     movie_list = sorted(
@@ -86,6 +96,8 @@ def recommend(movie):
 # ==============================
 # UI
 # ==============================
+st.set_page_config(page_title="Movie Recommender", layout="wide")
+
 st.title("🎬 Movie Recommender System")
 
 selected_movie = st.selectbox("Select a movie", movies_list)
