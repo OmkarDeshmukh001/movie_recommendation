@@ -28,7 +28,7 @@ movies_list = movies["title"].values
 def load_similarity():
     import gdown
 
-    file_id = "1TwWbz3EKwDK-JVOcBzTJyG13Ro_tiAYd"
+    file_id = "1zQ_CDLVBKRZAEhhZjXlEI1GRSoUceIxC"
     url = f"https://drive.google.com/uc?id={file_id}"
 
     if not os.path.exists("similarity.npy"):
